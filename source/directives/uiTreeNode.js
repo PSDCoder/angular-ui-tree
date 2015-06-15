@@ -5,11 +5,23 @@
 
     .directive('uiTreeNode', ['treeConfig', '$uiTreeHelper', '$window', '$document', '$timeout',
       function (treeConfig, $uiTreeHelper, $window, $document, $timeout) {
+        function fetchScope(element) {
+          var scope;
+          while (!scope && element.length) {
+            scope = element.data('_scope');
+            if (!scope) {
+              element = element.parent();
+            }
+          }
+          return scope;
+        }
+
         return {
           require: ['^uiTreeNodes', '^uiTree'],
           restrict: 'A',
           controller: 'TreeNodeController',
           link: function (scope, element, attrs, controllersArr) {
+            element.data('_scope', scope);
             // todo startPos is unused
             var config = {},
               hasTouch = 'ontouchstart' in window,
@@ -65,7 +77,7 @@
 
               // the element which is clicked.
               var eventElm = angular.element(e.target),
-                eventScope = eventElm.scope(),
+                eventScope = fetchScope(eventElm),
                 eventElmTagName, tagName,
                 eventObj, tdElm, hStyle;
               if (!eventScope || !eventScope.$type) {
@@ -302,7 +314,7 @@
                 // move vertical
                 if (!pos.dirAx) {
                   // check it's new position
-                  targetNode = targetElm.scope();
+                  targetNode = fetchScope(targetElm);
                   isEmpty = false;
                   if (!targetNode) {
                     return;

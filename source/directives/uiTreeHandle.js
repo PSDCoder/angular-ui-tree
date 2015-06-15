@@ -11,6 +11,7 @@
           controller: 'TreeHandleController',
           link: function (scope, element, attrs, treeNodeCtrl) {
             var config = {};
+            element.data('_scope', scope);
             angular.extend(config, treeConfig);
             if (config.handleClass) {
               element.addClass(config.handleClass);

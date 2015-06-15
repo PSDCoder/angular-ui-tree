@@ -14,7 +14,7 @@
       nodesClass: 'angular-ui-tree-nodes',
       nodeClass: 'angular-ui-tree-node',
       handleClass: 'angular-ui-tree-handle',
-      placeHolderClass: 'angular-ui-tree-placeholder',
+      placeholderClass: 'angular-ui-tree-placeholder',
       dragClass: 'angular-ui-tree-drag',
       dragThreshold: 3,
       levelThreshold: 30
@@ -162,7 +162,7 @@
           for (i = 0; i < nodes.length; i++) {
             childNodes = nodes[i].$childNodesScope;
 
-            if (childNodes) {
+            if (childNodes && childNodes.childNodesCount() > 0) {
               count = 1;
               countSubDepth(childNodes);
             }
@@ -306,7 +306,7 @@
         $scope.$callbacks = null;
 
         $scope.dragEnabled = true;
-        $scope.emptyPlaceHolderEnabled = true;
+        $scope.emptyPlaceholderEnabled = true;
         $scope.maxDepth = 0;
         $scope.dragDelay = 0;
         $scope.cloneEnabled = false;
@@ -324,14 +324,16 @@
           $scope.$emptyElm.remove();
         };
 
-        $scope.resetEmptyElement = function () {
-          if ($scope.$nodesScope.$modelValue.length === 0 &&
-            $scope.emptyPlaceHolderEnabled) {
+        this.resetEmptyElement = function () {
+          if ((!$scope.$nodesScope.$modelValue || $scope.$nodesScope.$modelValue.length === 0) &&
+            $scope.emptyPlaceholderEnabled) {
             $element.append($scope.$emptyElm);
           } else {
             $scope.$emptyElm.remove();
           }
         };
+
+        $scope.resetEmptyElement = this.resetEmptyElement;
 
         var collapseOrExpand = function (scope, collapsed) {
           var i, subScope,
@@ -367,7 +369,7 @@
           restrict: 'A',
           scope: true,
           controller: 'TreeController',
-          link: function (scope, element, attrs) {
+          link: function (scope, element, attrs, ctrl) {
             var callbacks = {
               accept: null,
               beforeDrag: null
@@ -385,9 +387,11 @@
             }
 
             scope.$watch('$nodesScope.$modelValue.length', function () {
-              if (scope.$nodesScope.$modelValue) {
-                scope.resetEmptyElement();
+              if (!scope.$nodesScope.$modelValue) {
+                return;
               }
+
+              ctrl.resetEmptyElement();
             }, true);
 
             scope.$watch(attrs.dragEnabled, function (val) {
@@ -396,9 +400,10 @@
               }
             });
 
-            scope.$watch(attrs.emptyPlaceHolderEnabled, function (val) {
+            scope.$watch(attrs.emptyPlaceholderEnabled, function (val) {
               if ((typeof val) == 'boolean') {
-                scope.emptyPlaceHolderEnabled = val;
+                scope.emptyPlaceholderEnabled = val;
+                ctrl.resetEmptyElement();
               }
             });
 
@@ -497,6 +502,7 @@
           controller: 'TreeHandleController',
           link: function (scope, element, attrs, treeNodeCtrl) {
             var config = {};
+            element.data('_scope', scope);
             angular.extend(config, treeConfig);
             if (config.handleClass) {
               element.addClass(config.handleClass);
@@ -519,11 +525,23 @@
 
     .directive('uiTreeNode', ['treeConfig', '$uiTreeHelper', '$window', '$document', '$timeout',
       function (treeConfig, $uiTreeHelper, $window, $document, $timeout) {
+        function fetchScope(element) {
+          var scope;
+          while (!scope && element.length) {
+            scope = element.data('_scope');
+            if (!scope) {
+              element = element.parent();
+            }
+          }
+          return scope;
+        }
+
         return {
           require: ['^uiTreeNodes', '^uiTree'],
           restrict: 'A',
           controller: 'TreeNodeController',
           link: function (scope, element, attrs, controllersArr) {
+            element.data('_scope', scope);
             // todo startPos is unused
             var config = {},
               hasTouch = 'ontouchstart' in window,
@@ -579,7 +597,7 @@
 
               // the element which is clicked.
               var eventElm = angular.element(e.target),
-                eventScope = eventElm.scope(),
+                eventScope = fetchScope(eventElm),
                 eventElmTagName, tagName,
                 eventObj, tdElm, hStyle;
               if (!eventScope || !eventScope.$type) {
@@ -634,11 +652,11 @@
               if (tagName.toLowerCase() === 'tr') {
                 placeElm = angular.element($window.document.createElement(tagName));
                 tdElm = angular.element($window.document.createElement('td'))
-                  .addClass(config.placeHolderClass);
+                  .addClass(config.placeholderClass);
                 placeElm.append(tdElm);
               } else {
                 placeElm = angular.element($window.document.createElement(tagName))
-                  .addClass(config.placeHolderClass);
+                  .addClass(config.placeholderClass);
               }
               hiddenPlaceElm = angular.element($window.document.createElement(tagName));
               if (config.hiddenClass) {
@@ -816,7 +834,7 @@
                 // move vertical
                 if (!pos.dirAx) {
                   // check it's new position
-                  targetNode = targetElm.scope();
+                  targetNode = fetchScope(targetElm);
                   isEmpty = false;
                   if (!targetNode) {
                     return;
